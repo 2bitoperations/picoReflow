@@ -129,7 +129,8 @@ class Oven (threading.Thread):
                     # This prevents runaway in the event of a sensor read failure                   
                     if temperature_count > 20:
                         log.info("Error reading sensor, oven temp not responding to heat.")
-                        self.reset()
+                        if not config.pid_disable_runaway_protection:
+                            self.reset()
                 else:
                     temperature_count = 0
                 

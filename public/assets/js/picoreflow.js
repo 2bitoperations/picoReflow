@@ -130,7 +130,7 @@ function updateProfileTable()
     $(".form-control").change(function(e)
         {
             var id = $(this)[0].id; //e.currentTarget.attributes.id
-            var value = parseInt($(this)[0].value);
+            var value = parseFloat($(this)[0].value);
             var fields = id.split("-");
             var col = parseInt(fields[1]);
             var row = parseInt(fields[2]);
@@ -160,7 +160,7 @@ function timeProfileFormatter(val, down) {
             if (down) {rval = val / 3600;} else {rval = val * 3600;} 
             break;
     }
-    return Math.round(rval);
+    return rval;
 }
 
 function formatDPS(val) {
@@ -289,7 +289,7 @@ function newPoint()
 {
     if(graph.profile.data.length > 0)
     {
-        var pointx = parseInt(graph.profile.data[graph.profile.data.length-1][0])+15;
+        var pointx = parseFloat(graph.profile.data[graph.profile.data.length-1][0])+15;
     }
     else
     {
