@@ -65,6 +65,9 @@ pid_kp = 0.5  # Proportional
 
 pid_disable_runaway_protection = False
 
+pid_slow_program_to keep_up = False
+pid_slow_program_shift_amount_secs = 30
+
 
 ########################################################################
 #

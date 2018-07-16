@@ -85,6 +85,7 @@ class Oven (threading.Thread):
         self.set_heat(False)
         self.set_cool(False)
         self.set_air(False)
+        self.lagging = False
         self.pid = PID(ki=config.pid_ki, kd=config.pid_kd, kp=config.pid_kp)
 
     def run_profile(self, profile):
@@ -93,6 +94,7 @@ class Oven (threading.Thread):
         self.totaltime = profile.get_duration()
         self.state = Oven.STATE_RUNNING
         self.start_time = datetime.datetime.now()
+        self.lagging = False
         log.info("Starting")
 
     def abort_run(self):
@@ -113,6 +115,19 @@ class Oven (threading.Thread):
                     self.runtime = runtime_delta.total_seconds()
                 log.info("running at %.1f deg C (Target: %.1f) , heat %.2f, cool %.2f, air %.2f, door %s (%.1fs/%.0f)" % (self.temp_sensor.temperature, self.target, self.heat, self.cool, self.air, self.door, self.runtime, self.totaltime))
                 self.target = self.profile.get_target_temperature(self.runtime)
+
+                current_temp = self.temp_sensor.temperature
+
+                if config.pid_slow_program_to_keep_up and \
+                        self.profile.is_rising(self.runtime) and \
+                        self.target - current_temp > 3:
+                    log.info("we're lagging - currently %.1f target %.1f, shifting future points by %d seconds" % (self.temp_sensor.temperature, self.target, config.pid_slow_program_shift_amount_secs))
+                    self.profile.shift_future_points(now=self.runtime, shift_amount=config.pid_slow_program_shift_amount_secs)
+                    self.target = self.profile.get_target_temperature(self.runtime)
+                    self.lagging = True
+                else:
+                    self.lagging = False
+
                 pid = self.pid.compute(self.target, self.temp_sensor.temperature)
 
                 log.info("pid: %.3f" % pid)
@@ -211,7 +226,8 @@ class Oven (threading.Thread):
             'cool': self.cool,
             'air': self.air,
             'totaltime': self.totaltime,
-            'door': self.door
+            'door': self.door,
+            'lagging': self.lagging
         }
         return state
 
@@ -321,19 +337,30 @@ class Profile():
         return max([t for (t, x) in self.data])
 
     def get_surrounding_points(self, time):
+        prev_point, next_point = self.index_of_surrounding_points(time)
+        prev_time = None
+        next_time = None
+        if prev_point:
+            prev_time = self.data[prev_point]
+        if next_point:
+            next_time = self.data[next_point]
+
+        return prev_time, next_time
+
+    def index_of_surrounding_points(self, time):
         if time > self.get_duration():
-            return (None, None)
+            return None, None
 
         prev_point = None
         next_point = None
 
         for i in range(len(self.data)):
             if time < self.data[i][0]:
-                prev_point = self.data[i-1]
-                next_point = self.data[i]
+                prev_point = i - 1
+                next_point = i
                 break
 
-        return (prev_point, next_point)
+        return prev_point, next_point
 
     def is_rising(self, time):
         (prev_point, next_point) = self.get_surrounding_points(time)
@@ -351,6 +378,15 @@ class Profile():
         incl = float(next_point[1] - prev_point[1]) / float(next_point[0] - prev_point[0])
         temp = prev_point[1] + (time - prev_point[0]) * incl
         return temp
+
+    def shift_future_points(self, now, shift_amount):
+        prev_point_index, next_point_index = self.index_of_surrounding_points(time=now)
+
+        if not next_point_index:
+            return
+
+        for i in range(next_point_index, len(self.data)):
+            self.data[i][0] = self.data[i][0] + shift_amount
 
 
 class PID():

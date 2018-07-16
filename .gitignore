@@ -4,6 +4,9 @@
 .#*
 *.swp
 .DStore/
+.DS_Store
+._.DS_Store
+._*
 thumbs.db
 storage/profiles
 config.py
