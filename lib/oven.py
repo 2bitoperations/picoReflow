@@ -121,8 +121,8 @@ class Oven (threading.Thread):
                 if config.pid_slow_program_to_keep_up and \
                         self.profile.is_rising(self.runtime) and \
                         self.target - current_temp > 3:
-                    log.info("we're lagging - currently %.1f target %.1f, shifting future points by %d seconds" % (self.temp_sensor.temperature, self.target, config.pid_slow_program_shift_amount_secs))
-                    self.profile.shift_future_points(now=self.runtime, shift_amount=config.pid_slow_program_shift_amount_secs)
+                    log.info("we're lagging - currently %.1f target %.1f, shifting future points by %d seconds" % (self.temp_sensor.temperature, self.target, self.time_step))
+                    self.profile.shift_future_points(now=self.runtime, shift_amount=self.time_step)
                     self.target = self.profile.get_target_temperature(self.runtime)
                     self.lagging = True
                 else:
@@ -338,29 +338,30 @@ class Profile():
 
     def get_surrounding_points(self, time):
         prev_point, next_point = self.index_of_surrounding_points(time)
+        log.info("prev %s next %s" % (prev_point, next_point))
         prev_time = None
         next_time = None
-        if prev_point:
+        if prev_point is not None:
             prev_time = self.data[prev_point]
-        if next_point:
+        if next_point is not None:
             next_time = self.data[next_point]
 
-        return prev_time, next_time
+        return (prev_time, next_time)
 
     def index_of_surrounding_points(self, time):
         if time > self.get_duration():
-            return None, None
+            return (None, None)
 
         prev_point = None
         next_point = None
 
-        for i in range(len(self.data)):
+        for i in range(1, len(self.data)):
             if time < self.data[i][0]:
                 prev_point = i - 1
                 next_point = i
                 break
 
-        return prev_point, next_point
+        return (prev_point, next_point)
 
     def is_rising(self, time):
         (prev_point, next_point) = self.get_surrounding_points(time)
@@ -374,6 +375,8 @@ class Profile():
             return 0
 
         (prev_point, next_point) = self.get_surrounding_points(time)
+	
+        log.info("data %s prev %s next %s" % (self.data, prev_point, next_point))
 
         incl = float(next_point[1] - prev_point[1]) / float(next_point[0] - prev_point[0])
         temp = prev_point[1] + (time - prev_point[0]) * incl
