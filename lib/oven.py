@@ -123,6 +123,7 @@ class Oven (threading.Thread):
                         self.target - current_temp > 3:
                     log.info("we're lagging - currently %.1f target %.1f, shifting future points by %d seconds" % (self.temp_sensor.temperature, self.target, self.time_step))
                     self.profile.shift_future_points(now=self.runtime, shift_amount=self.time_step)
+                    self.totaltime = self.profile.get_duration()
                     self.target = self.profile.get_target_temperature(self.runtime)
                     self.lagging = True
                 else:
@@ -149,12 +150,12 @@ class Oven (threading.Thread):
                             self.reset()
                 else:
                     temperature_count = 0
-                    
+
                 #Capture the last temperature value.  This must be done before set_heat, since there is a sleep in there now.
                 last_temp = self.temp_sensor.temperature
-                
+
                 self.set_heat(pid)
-                
+
                 #if self.profile.is_rising(self.runtime):
                 #    self.set_cool(False)
                 #    self.set_heat(self.temp_sensor.temperature < self.target)
@@ -170,7 +171,7 @@ class Oven (threading.Thread):
                 if self.runtime >= self.totaltime:
                     self.reset()
 
-            
+
             if pid > 0:
                 time.sleep(self.time_step * (1 - pid))
             else:
@@ -183,11 +184,11 @@ class Oven (threading.Thread):
                if config.heater_invert:
                  GPIO.output(config.gpio_heat, GPIO.LOW)
                  time.sleep(self.time_step * value)
-                 GPIO.output(config.gpio_heat, GPIO.HIGH)   
+                 GPIO.output(config.gpio_heat, GPIO.HIGH)
                else:
                  GPIO.output(config.gpio_heat, GPIO.HIGH)
                  time.sleep(self.time_step * value)
-                 GPIO.output(config.gpio_heat, GPIO.LOW)   
+                 GPIO.output(config.gpio_heat, GPIO.LOW)
         else:
             self.heat = 0.0
             if gpio_available:
@@ -229,6 +230,8 @@ class Oven (threading.Thread):
             'door': self.door,
             'lagging': self.lagging
         }
+        if self.lagging:
+            state['profile'] = self.profile.get_serializable_representation()
         return state
 
     def get_door_state(self):
@@ -375,7 +378,7 @@ class Profile():
             return 0
 
         (prev_point, next_point) = self.get_surrounding_points(time)
-	
+
         log.info("data %s prev %s next %s" % (self.data, prev_point, next_point))
 
         incl = float(next_point[1] - prev_point[1]) / float(next_point[0] - prev_point[0])
@@ -390,6 +393,12 @@ class Profile():
 
         for i in range(next_point_index, len(self.data)):
             self.data[i][0] = self.data[i][0] + shift_amount
+
+    def get_serializable_representation(self):
+        out = dict()
+        out['name'] = self.name
+        out['data'] = list(self.data)
+        return out
 
 
 class PID():

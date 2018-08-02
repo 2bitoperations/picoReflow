@@ -41,6 +41,17 @@ graph.live =
     draggable: false
 };
 
+function updateProfileFromServerJson(profile)
+{
+    // find the index of the supplied profile
+    suppliedProfileName = profile.name;
+    $.each(profiles,  function(i,v) {
+        if (v.name === suppliedProfileName) {
+            profiles[i].data = profile.data;
+            updateProfile(i);
+        }
+    });
+}
 
 function updateProfile(id)
 {
@@ -542,7 +553,13 @@ $(document).ready(function()
                     $('#state').html('<span class="glyphicon glyphicon-time" style="font-size: 22px; font-weight: normal"></span><span style="font-family: Digi; font-size: 40px;">' + eta + '</span>');
                     $('#target_temp').html(parseInt(x.target));
 
-
+                    // did we get an update of the profile along with this message?
+                    // this will happen if the profile requests heating faster than what the device can actually do
+                    // (lagging)
+                    if (x.profile) {
+                        console.log(x)
+                        updateProfileFromServerJson(x.profile);
+                    }
                 }
                 else
                 {
@@ -556,7 +573,7 @@ $(document).ready(function()
                 if (x.heat > 0.5) { $('#heat').addClass("ds-led-heat-active"); } else { $('#heat').removeClass("ds-led-heat-active"); }
                 if (x.cool > 0.5) { $('#cool').addClass("ds-led-cool-active"); } else { $('#cool').removeClass("ds-led-cool-active"); }
                 if (x.air > 0.5) { $('#air').addClass("ds-led-air-active"); } else { $('#air').removeClass("ds-led-air-active"); }
-                if (x.air > 0.5) { $('#lagging').addClass("ds-led-lagging-active"); } else { $('#lagging').removeClass("ds-led-lagging-active"); }
+                if (x.lagging > 0.5) { $('#lagging').addClass("ds-led-lagging-active"); } else { $('#lagging').removeClass("ds-led-lagging-active"); }
                 if (x.temperature > hazardTemp()) { $('#hazard').addClass("ds-led-hazard-active"); } else { $('#hazard').removeClass("ds-led-hazard-active"); }
                 if ((x.door == "OPEN") || (x.door == "UNKNOWN")) { $('#door').addClass("ds-led-door-open"); } else { $('#door').removeClass("ds-led-door-open"); }
 

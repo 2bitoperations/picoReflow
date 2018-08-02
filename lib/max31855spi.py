@@ -3,6 +3,9 @@ import logging
 
 from Adafruit_MAX31855 import MAX31855
 
+from max31855 import MAX31855Error
+
+
 class MAX31855SPI(object):
     '''Python driver for [MAX38155 Cold-Junction Compensated Thermocouple-to-Digital Converter](http://www.maximintegrated.com/datasheet/index.mvp/id/7273)
      Requires:
